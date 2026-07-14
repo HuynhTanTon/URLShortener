@@ -1,0 +1,35 @@
+---
+description: Bat buoc doc huong-dan-url-shortener-aws.md truoc khi thay doi kien truc/logic, va giu nguyen ten/region da thong nhat
+alwaysApply: true
+---
+
+# Ngu canh bat buoc cua du an URL Shortener
+
+## 1. Phai doc tai lieu goc truoc khi thay doi kien truc hoac logic
+
+- `huong-dan-url-shortener-aws.md` (o root repo) la **nguon su thuc duy nhat** cho kien truc, luong xu ly,
+  cau hinh IAM/CORS, va cach deploy cua du an nay.
+- Truoc khi them/sua **kien truc** (them dich vu AWS moi, doi cach Lambda/DynamoDB/S3 giao tiep) hoac
+  **logic nghiep vu** (tao link ngan, redirect, validate), phai doc lai file nay de doi chieu, khong tu suy
+  dien khac di.
+- `README.md` mo ta cach chay ban mo phong local bang Docker (`infra/docker/docker-compose.yml`) — doc file
+  nay truoc khi dong den phan local dev.
+- Neu tai lieu goc va code hien tai mau thuan nhau, hoi lai nguoi dung truoc khi tu quyet dinh sua ben nao.
+
+## 2. Khong tu doi ten/region da thong nhat
+
+Cac gia tri sau la **co dinh**, chi doi khi nguoi dung yeu cau ro rang:
+
+| Thanh phan | Gia tri |
+|---|---|
+| DynamoDB table name | `url-shortener-links` (partition key `shortCode`, kieu String) |
+| AWS Region | `ap-southeast-1` (Singapore) — bat buoc S3, Lambda, DynamoDB cung region |
+| Lambda function name | `url-shortener-backend` |
+| IAM Role name | `url-shortener-lambda-role` |
+| S3 bucket name | theo pattern `url-shortener-frontend-<hau-to-rieng>` |
+
+- `backend/src/handler.mjs` phai luon la code deploy-duoc thang len AWS Lambda Console **khong can sua gi**
+  (khong them hack/dependency chi danh cho local vao file nay — hack local-only chi dat trong
+  `backend/local-server.mjs`, `backend/src/ensure-table.mjs`, hoac `backend/Dockerfile`).
+- Neu can doi ten/region vi ly do ky thuat, giai thich ro va xac nhan voi nguoi dung truoc khi doi dong loat
+  trong code + tai lieu.

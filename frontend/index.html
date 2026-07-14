@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rút gọn Link</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+  }
+  .card {
+    background: #fff;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    width: 100%;
+    max-width: 480px;
+  }
+  h1 { margin-top: 0; color: #1f2937; font-size: 24px; }
+  p.subtitle { color: #6b7280; margin-bottom: 24px; }
+  input[type="text"] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+    margin-bottom: 12px;
+  }
+  button {
+    width: 100%;
+    padding: 12px;
+    background: #4f46e5;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { background: #4338ca; }
+  button:disabled { background: #a5a6f6; cursor: not-allowed; }
+  #result {
+    margin-top: 20px;
+    padding: 14px;
+    border-radius: 8px;
+    display: none;
+    word-break: break-all;
+  }
+  #result.success { background: #ecfdf5; border: 1px solid #10b981; color: #065f46; }
+  #result.error { background: #fef2f2; border: 1px solid #ef4444; color: #991b1b; }
+  #result a { color: #065f46; font-weight: 600; }
+  .copy-btn {
+    margin-top: 8px;
+    background: #10b981;
+    padding: 8px 12px;
+    font-size: 13px;
+    width: auto;
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔗 Rút gọn Link</h1>
+    <p class="subtitle">Dán link dài vào ô bên dưới để tạo link ngắn</p>
+
+    <input type="text" id="urlInput" placeholder="https://example.com/link-rat-dai...">
+    <button id="submitBtn" onclick="shortenUrl()">Tạo link ngắn</button>
+
+    <div id="result"></div>
+  </div>
+
+<script src="config.js"></script>
+<script>
+  const LAMBDA_URL = window.APP_CONFIG.LAMBDA_URL;
+
+  async function shortenUrl() {
+    const input = document.getElementById("urlInput");
+    const resultDiv = document.getElementById("result");
+    const btn = document.getElementById("submitBtn");
+    const url = input.value.trim();
+
+    resultDiv.style.display = "none";
+
+    if (!url) {
+      showError("Vui lòng nhập link.");
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Đang xử lý...";
+
+    try {
+      const res = await fetch(LAMBDA_URL + "/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError(data.error || "Có lỗi xảy ra.");
+      } else {
+        showSuccess(data.shortUrl);
+      }
+    } catch (err) {
+      showError("Không thể kết nối tới server. Kiểm tra lại kết nối mạng hoặc CORS.");
+      console.error(err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Tạo link ngắn";
+    }
+  }
+
+  function showSuccess(shortUrl) {
+    const resultDiv = document.getElementById("result");
+    resultDiv.className = "success";
+    resultDiv.style.display = "block";
+    resultDiv.innerHTML = `
+      Link ngắn của bạn: <br>
+      <a href="${shortUrl}" target="_blank">${shortUrl}</a><br>
+      <button class="copy-btn" onclick="copyToClipboard('${shortUrl}')">📋 Copy</button>
+    `;
+  }
+
+  function showError(msg) {
+    const resultDiv = document.getElementById("result");
+    resultDiv.className = "error";
+    resultDiv.style.display = "block";
+    resultDiv.textContent = "❌ " + msg;
+  }
+
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => alert("Đã copy link!"));
+  }
+</script>
+</body>
+</html>

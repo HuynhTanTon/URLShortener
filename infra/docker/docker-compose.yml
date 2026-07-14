@@ -1,0 +1,47 @@
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+    ports:
+      - "8000:8000"
+    networks: [urlshortener]
+
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin:latest
+    environment:
+      DYNAMO_ENDPOINT: http://dynamodb-local:8000
+      AWS_REGION: ap-southeast-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+    ports:
+      - "8001:8001"
+    depends_on: [dynamodb-local]
+    networks: [urlshortener]
+
+  backend:
+    build:
+      context: ../../backend
+    environment:
+      TABLE_NAME: url-shortener-links
+      DYNAMODB_ENDPOINT: http://dynamodb-local:8000
+      AWS_REGION: ap-southeast-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    depends_on: [dynamodb-local]
+    networks: [urlshortener]
+
+  frontend:
+    image: nginx:alpine
+    volumes:
+      - ../../frontend:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+    depends_on: [backend]
+    networks: [urlshortener]
+
+networks:
+  urlshortener:
+    driver: bridge
