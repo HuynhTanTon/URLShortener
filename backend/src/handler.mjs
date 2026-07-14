@@ -2,7 +2,7 @@
 // Deploy nguyen file nay len AWS Lambda (mục 3.4 huong-dan-url-shortener-aws.md)
 // khong can sua gi ca — @aws-sdk da co san trong Lambda Node.js runtime.
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import crypto from "crypto";
 
 const TABLE_NAME = process.env.TABLE_NAME || "url-shortener-links";
@@ -67,14 +67,14 @@ export const handler = async (event) => {
 
       return jsonResponse(200, { shortCode, shortUrl, originalUrl });
     } catch (err) {
-      console.error(err);
+      console.error("[ERROR]", err);
       return jsonResponse(500, { error: "Lỗi server khi tạo link ngắn." });
     }
   }
 
-  // ----- LUONG 2: REDIRECT (GET /{shortCode}) -----
-  if (method === "GET" && path !== "/") {
-    const shortCode = path.replace("/", "");
+  // ----- LUONG 3: XEM SO LIEU (GET /stats/{shortCode}) - khong tang clickCount -----
+  if (method === "GET" && path.startsWith("/stats/")) {
+    const shortCode = path.replace("/stats/", "");
 
     try {
       const result = await ddb.send(new GetCommand({
@@ -86,15 +86,44 @@ export const handler = async (event) => {
         return jsonResponse(404, { error: "Link không tồn tại hoặc đã bị xoá." });
       }
 
+      return jsonResponse(200, {
+        shortCode,
+        originalUrl: result.Item.originalUrl,
+        clickCount: result.Item.clickCount || 0,
+        createdAt: result.Item.createdAt,
+      });
+    } catch (err) {
+      console.error("[ERROR]", err);
+      return jsonResponse(500, { error: "Lỗi server khi lấy số liệu." });
+    }
+  }
+
+  // ----- LUONG 2: REDIRECT (GET /{shortCode}) - tang clickCount atomic -----
+  if (method === "GET" && path !== "/") {
+    const shortCode = path.replace("/", "");
+
+    try {
+      const result = await ddb.send(new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { shortCode },
+        UpdateExpression: "SET clickCount = if_not_exists(clickCount, :zero) + :inc",
+        ConditionExpression: "attribute_exists(shortCode)",
+        ExpressionAttributeValues: { ":zero": 0, ":inc": 1 },
+        ReturnValues: "ALL_NEW",
+      }));
+
       return {
         statusCode: 302,
         headers: {
-          Location: result.Item.originalUrl,
+          Location: result.Attributes.originalUrl,
         },
         body: "",
       };
     } catch (err) {
-      console.error(err);
+      if (err.name === "ConditionalCheckFailedException") {
+        return jsonResponse(404, { error: "Link không tồn tại hoặc đã bị xoá." });
+      }
+      console.error("[ERROR]", err);
       return jsonResponse(500, { error: "Lỗi server khi tra cứu link." });
     }
   }

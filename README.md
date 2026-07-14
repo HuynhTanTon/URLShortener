@@ -79,3 +79,41 @@ Nếu máy bạn có phần mềm diệt virus quét SSL (VD: Avast), `npm insta
 Khi đã test ổn trên Docker, deploy lên AWS thật theo đúng mục 3–5 của `huong-dan-url-shortener-aws.md`:
 - `backend/src/handler.mjs` chính là code sẽ upload lên Lambda (paste trực tiếp vào `index.mjs` trên Console, không cần `node_modules` vì SDK đã có sẵn trong runtime).
 - `frontend/index.html` + `frontend/config.aws.template.js` (copy thành `config.js`, thay `__LAMBDA_URL__` bằng Function URL thật) chính là 2 file upload lên S3.
+
+## Nâng cấp: đếm lượt click + cảnh báo lỗi qua CloudWatch
+
+### Đếm lượt click (`clickCount`)
+
+Luồng redirect (`GET /{shortCode}`) giờ dùng `UpdateCommand` để tăng `clickCount` **atomic** (an toàn khi nhiều người click cùng lúc), kèm `ConditionExpression: attribute_exists(shortCode)` để vẫn trả 404 đúng khi mã không tồn tại (nếu thiếu điều kiện này, `UpdateItem` sẽ tự tạo item mới thay vì báo lỗi).
+
+Thêm endpoint mới **`GET /stats/{shortCode}`** (không tăng click count, chỉ đọc):
+```json
+{ "shortCode": "aZ3kT9", "originalUrl": "https://...", "clickCount": 5, "createdAt": "..." }
+```
+
+**Cần cập nhật IAM policy trên AWS thật** — thêm quyền `dynamodb:UpdateItem` (mục 3.2 tài liệu gốc hiện chỉ có `PutItem`, `GetItem`):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowDynamoDBAccessToShortenerTable",
+      "Effect": "Allow",
+      "Action": ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem"],
+      "Resource": "arn:aws:dynamodb:ap-southeast-1:<ACCOUNT_ID>:table/url-shortener-links"
+    }
+  ]
+}
+```
+
+### Cảnh báo lỗi qua CloudWatch
+
+`handler.mjs` luôn `catch` lỗi và trả JSON 500 thay vì throw ra ngoài, nên metric có sẵn `Lambda > Errors` sẽ luôn = 0. Code đã chuẩn hoá log lỗi thành `console.error("[ERROR]", err)` để dùng **CloudWatch Logs Metric Filter** (đọc log, không phụ thuộc Lambda có throw hay không). Các bước làm trên AWS Console (không có trong code, phải tự làm):
+
+1. **CloudWatch → Log groups → `/aws/lambda/url-shortener-backend` → Metric filters → Create metric filter**
+   - Filter pattern: `"[ERROR]"`
+   - Đặt tên metric: `URLShortenerErrorCount`
+2. **CloudWatch → Alarms → Create alarm** trên metric `URLShortenerErrorCount`
+   - Ngưỡng: **≥ 1 lỗi trong 5 phút**
+3. Tạo **SNS topic** mới, subscribe email nhận cảnh báo → xác nhận subscription qua email đã nhận được.
