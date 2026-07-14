@@ -1,6 +1,6 @@
-// Cau hinh cho moi truong LOCAL (Docker). Khi deploy AWS thuc te, thay file
-// nay bang ban sinh ra tu config.aws.template.js (thay __LAMBDA_URL__ bang
-// Function URL thuc te) roi upload len S3 cung index.html.
+// Dang tro ve Lambda Function URL thuc te tren AWS (khong con dung backend
+// local nua). Neu muon quay lai test voi backend local (Docker), doi
+// LAMBDA_URL ve "http://localhost:3000".
 window.APP_CONFIG = {
-  LAMBDA_URL: "http://localhost:3000",
+  LAMBDA_URL: "https://wkrzvdek3oopk3vgurrwg4nsci0rtxtx.lambda-url.ap-southeast-1.on.aws",
 };
