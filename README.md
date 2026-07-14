@@ -13,12 +13,15 @@
 
 <img src="frontend/forest-anime-bg.png" alt="preview background" width="480" />
 
+### 🎬 [Xem video demo](docs/demo.mp4)
+
 </div>
 
 ---
 
 ## 📚 Mục lục
 
+- [Video demo](#-xem-video-demo)
 - [Tổng quan](#-tổng-quan)
 - [Kiến trúc](#-kiến-trúc)
 - [Cấu trúc project](#-cấu-trúc-project)
