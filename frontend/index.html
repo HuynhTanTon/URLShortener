@@ -6,69 +6,138 @@
 <title>Rút gọn Link</title>
 <style>
   * { box-sizing: border-box; }
+
+  :root {
+    --accent: #0d9488;
+    --accent-dark: #0f766e;
+    --accent-light: #f0fdfa;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+  }
+
   body {
-    font-family: 'Segoe UI', Arial, sans-serif;
-    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background:
+      linear-gradient(180deg, rgba(6, 30, 20, 0.35), rgba(6, 30, 20, 0.55)),
+      url("forest-anime-bg.png");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0;
+    padding: 24px;
+    color: var(--ink);
   }
+
   .card {
-    background: #fff;
-    padding: 40px;
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(6px);
+    padding: 40px 36px;
+    border-radius: 20px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1), 0 20px 45px rgba(6, 30, 20, 0.35);
     width: 100%;
-    max-width: 480px;
+    max-width: 420px;
   }
-  h1 { margin-top: 0; color: #1f2937; font-size: 24px; }
-  p.subtitle { color: #6b7280; margin-bottom: 24px; }
+
+  .badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--accent-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  .badge svg { width: 22px; height: 22px; stroke: var(--accent); }
+
+  h1 {
+    margin: 0 0 6px;
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  p.subtitle {
+    color: var(--muted);
+    margin: 0 0 24px;
+    font-size: 14px;
+  }
+
   input[type="text"] {
     width: 100%;
     padding: 12px 14px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 15px;
-    margin-bottom: 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    margin-bottom: 10px;
+    outline: none;
+    transition: border-color 0.15s ease;
+    font-family: inherit;
   }
+
+  input[type="text"]:focus { border-color: var(--accent); }
+
   button {
     width: 100%;
     padding: 12px;
-    background: #4f46e5;
+    background: var(--accent);
     color: white;
     border: none;
-    border-radius: 8px;
-    font-size: 15px;
+    border-radius: 10px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease;
   }
-  button:hover { background: #4338ca; }
-  button:disabled { background: #a5a6f6; cursor: not-allowed; }
+
+  button:hover { background: var(--accent-dark); }
+  button:disabled { background: #a7b0bc; cursor: not-allowed; }
+
   #result {
-    margin-top: 20px;
-    padding: 14px;
-    border-radius: 8px;
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
     display: none;
     word-break: break-all;
+    font-size: 14px;
+    line-height: 1.5;
   }
-  #result.success { background: #ecfdf5; border: 1px solid #10b981; color: #065f46; }
-  #result.error { background: #fef2f2; border: 1px solid #ef4444; color: #991b1b; }
-  #result a { color: #065f46; font-weight: 600; }
+
+  #result.success { background: var(--accent-light); color: #115e59; }
+  #result.error { background: #fef2f2; color: #991b1b; }
+  #result a { color: var(--accent-dark); font-weight: 600; text-decoration: none; }
+  #result a:hover { text-decoration: underline; }
+
   .copy-btn {
-    margin-top: 8px;
-    background: #10b981;
-    padding: 8px 12px;
-    font-size: 13px;
+    margin-top: 10px;
+    background: transparent;
+    border: 1.5px solid var(--accent);
+    color: var(--accent-dark);
+    padding: 6px 12px;
+    font-size: 12.5px;
     width: auto;
     display: inline-block;
   }
+
+  .copy-btn:hover { background: var(--accent-light); }
 </style>
 </head>
 <body>
   <div class="card">
-    <h1>🔗 Rút gọn Link</h1>
+    <div class="badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11.5 4.5" />
+        <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L12.5 19.5" />
+      </svg>
+    </div>
+    <h1>Rút gọn Link</h1>
     <p class="subtitle">Dán link dài vào ô bên dưới để tạo link ngắn</p>
 
     <input type="text" id="urlInput" placeholder="https://example.com/link-rat-dai...">
@@ -127,7 +196,7 @@
     resultDiv.innerHTML = `
       Link ngắn của bạn: <br>
       <a href="${shortUrl}" target="_blank">${shortUrl}</a><br>
-      <button class="copy-btn" onclick="copyToClipboard('${shortUrl}')">📋 Copy</button>
+      <button class="copy-btn" onclick="copyToClipboard('${shortUrl}')">Copy link</button>
     `;
   }
 
@@ -135,7 +204,7 @@
     const resultDiv = document.getElementById("result");
     resultDiv.className = "error";
     resultDiv.style.display = "block";
-    resultDiv.textContent = "❌ " + msg;
+    resultDiv.textContent = msg;
   }
 
   function copyToClipboard(text) {
