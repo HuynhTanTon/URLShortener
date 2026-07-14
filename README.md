@@ -1,13 +1,14 @@
 <div align="center">
 
-# 🔗 URL Shortener
+<img src="https://capsule-render.vercel.app/api?type=waving&height=200&color=0:0d9488,100:134e4a&text=URL%20Shortener&fontColor=ffffff&fontSize=48&animation=fadeIn&desc=Serverless%20on%20AWS%20%E2%80%A2%20S3%20%2B%20Lambda%20%2B%20DynamoDB&descAlignY=78&descSize=18" width="100%" alt="URL Shortener banner" />
 
-**Serverless URL Shortener trên AWS** — S3 (frontend) + Lambda Function URL (backend) + DynamoDB
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=20&duration=3000&pause=1000&color=0D9488&center=true&vCenter=true&width=600&lines=Serverless+URL+Shortener+on+AWS;S3+%2B+Lambda+Function+URL+%2B+DynamoDB;Region%3A+ap-southeast-1+(Singapore))](#)
 
 [![AWS](https://img.shields.io/badge/AWS-Lambda%20%7C%20S3%20%7C%20DynamoDB-FF9900?logo=amazonaws&logoColor=white)](https://aws.amazon.com/)
-[![Region](https://img.shields.io/badge/region-ap--southeast--1-orange)](#)
+[![Region](https://img.shields.io/badge/region-ap--southeast--1-0d9488)](#)
 [![Node.js](https://img.shields.io/badge/Node.js-20.x-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/local%20dev-Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Last Commit](https://img.shields.io/github/last-commit/HuynhTanTon/URLShortener?color=0d9488&label=last%20commit)](https://github.com/HuynhTanTon/URLShortener/commits)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](#)
 
 <img src="frontend/forest-anime-bg.png" alt="preview background" width="480" />
@@ -41,6 +42,9 @@ Dự án triển khai theo kiến trúc trong `huong-dan-url-shortener-aws.md`: 
 | ⚡ Lambda Function URL | Node.js HTTP server (`backend/local-server.mjs`) bọc quanh `backend/src/handler.mjs` | **`handler.mjs` là code Lambda thật 100%**, deploy lên AWS không cần sửa gì |
 | 🌐 S3 Static Website Hosting | Nginx (`nginx:alpine`) serve thư mục `frontend/` | `index.html` giống hệt file sẽ upload lên S3 |
 | 🔍 DynamoDB Console | `dynamodb-admin` (UI web) | Tiện xem item trong bảng khi test |
+
+> [!NOTE]
+> `backend/src/handler.mjs` là code Lambda **deploy-được thẳng lên AWS Console, không cần sửa gì**. Mọi hack chỉ dành cho local (SSL, tự tạo bảng...) đều nằm riêng ở `local-server.mjs`, `ensure-table.mjs`, `Dockerfile`.
 
 ## 🏗️ Kiến trúc
 
@@ -98,6 +102,9 @@ Sau khi các container chạy (`docker compose ps`), truy cập:
 
 Mở **http://localhost:8080**, nhập 1 link dài, nhấn "Tạo link ngắn" — hệ thống hoạt động đúng như khi chạy trên AWS thật (tạo mã ngắn, lưu DynamoDB, redirect 302).
 
+> [!TIP]
+> Luôn test đủ trên Docker local **trước**, chỉ deploy lên AWS thật sau khi mọi thứ đã chạy đúng — đỡ tốn phí và dễ debug hơn nhiều.
+
 <details>
 <summary>📋 Xem log / dừng / dọn dẹp</summary>
 
@@ -132,6 +139,9 @@ Khi đã test ổn trên Docker, deploy lên AWS thật theo đúng mục 3–5 
 
 - `backend/src/handler.mjs` chính là code sẽ upload lên Lambda (paste trực tiếp vào `index.mjs` trên Console, không cần `node_modules` vì SDK đã có sẵn trong runtime).
 - `frontend/index.html` + `frontend/config.aws.template.js` (copy thành `config.js`, thay `__LAMBDA_URL__` bằng Function URL thật) chính là 2 file upload lên S3.
+
+> [!IMPORTANT]
+> Region bắt buộc là **`ap-southeast-1` (Singapore)** cho cả S3, Lambda, DynamoDB — không đổi trừ khi có lý do kỹ thuật rõ ràng và đã xác nhận với người phụ trách.
 
 ## 📈 Nâng cấp: đếm lượt click & cảnh báo lỗi qua CloudWatch
 
@@ -181,16 +191,14 @@ Các bước làm trên AWS Console (không có trong code, phải tự làm):
 
 ## 🛠️ Xử lý lỗi thường gặp
 
-<details>
-<summary>❌ Lỗi SSL khi build (Avast / antivirus chặn HTTPS)</summary>
-
-Nếu máy bạn có phần mềm diệt virus quét SSL (VD: Avast), `npm install` trong container backend có thể báo lỗi `UNABLE_TO_VERIFY_LEAF_SIGNATURE`. `backend/Dockerfile` đã xử lý sẵn bằng `npm config set strict-ssl false` — đây **chỉ là workaround cho môi trường dev local**, không ảnh hưởng gì đến việc deploy lên AWS Lambda thật (Lambda runtime đã có sẵn `@aws-sdk/client-dynamodb` và `@aws-sdk/lib-dynamodb`, không cần `npm install`).
-
-</details>
+> [!WARNING]
+> Nếu máy bạn có phần mềm diệt virus quét SSL (VD: Avast), `npm install` trong container backend có thể báo lỗi `UNABLE_TO_VERIFY_LEAF_SIGNATURE`. `backend/Dockerfile` đã xử lý sẵn bằng `npm config set strict-ssl false` — đây **chỉ là workaround cho môi trường dev local**, không ảnh hưởng gì đến việc deploy lên AWS Lambda thật (Lambda runtime đã có sẵn `@aws-sdk/client-dynamodb` và `@aws-sdk/lib-dynamodb`, không cần `npm install`).
 
 ---
 
 <div align="center">
+
+<img src="https://capsule-render.vercel.app/api?type=waving&height=120&color=0:134e4a,100:0d9488&section=footer&animation=fadeIn" width="100%" alt="footer" />
 
 Made with ☕ and 🔗 — chạy thử local trước, deploy AWS sau.
 
