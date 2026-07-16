@@ -52,20 +52,41 @@ Dự án triển khai theo kiến trúc trong `huong-dan-url-shortener-aws.md`: 
 
 ## 🏗️ Kiến trúc
 
+> Sơ đồ dưới đây vẽ đúng phần **đã triển khai thật trong code** (kể cả 2 nâng cấp: đếm click + cảnh báo CloudWatch, và custom short code + analytics mở rộng). Các đề xuất của admin **chưa triển khai** (Amplify, DAX, multi-region, đăng nhập...) không được vẽ vào đây — xem bảng trạng thái ngay dưới sơ đồ.
+
 ```mermaid
 flowchart LR
-    U([👤 Người dùng]) -->|1. Mở trang & nhập link| S3[🌐 S3<br/>Static Website]
-    S3 -->|2. POST /| L[⚡ Lambda<br/>Function URL]
-    L -->|3. PutItem| D[(🗄️ DynamoDB<br/>url-shortener-links)]
+    U([👤 Người dùng]) -->|1. Mở trang, nhập link<br/>+ mã tuỳ chọn nếu muốn| S3[🌐 S3<br/>Static Website]
+    S3 -->|2. POST /<br/>url + customCode?| L[⚡ Lambda<br/>Function URL]
+    L -->|3. PutItem<br/>condition: not_exists| D[(🗄️ DynamoDB<br/>url-shortener-links)]
     U -->|4. GET /shortCode| L
-    L -->|5. UpdateItem + GetItem| D
+    L -->|5. UpdateItem atomic<br/>clickCount + lastClickedAt| D
     L -->|6. 302 Redirect| U
+    U -.->|7. GET /stats/shortCode| L
+    L -.->|8. GetItem read-only| D
+    L -->|9. console.error| CW[📋 CloudWatch Logs]
+    CW -->|10. Metric filter pattern: ERROR| AL[🚨 CloudWatch Alarm]
+    AL -->|11. Trigger khi ≥1 lỗi/5 phút| SNS[📧 SNS Topic]
+    SNS -->|12. Gửi email| ADM([👤 Admin])
 ```
 
-1. Người dùng mở trang web tĩnh trên **S3**, nhập link dài (và tuỳ chọn mã ngắn riêng — *custom short code*).
-2. Trang gọi `POST /` tới **Lambda Function URL**, Lambda sinh `shortCode` (random 6 ký tự, hoặc dùng mã do người dùng đặt), lưu vào **DynamoDB**.
-3. Khi ai truy cập `shortUrl`, Lambda tra bảng, tăng `clickCount` + cập nhật `lastClickedAt` (atomic), trả về **HTTP 302** redirect tới link gốc.
-4. `GET /stats/{shortCode}` cho xem số liệu (link gốc, số lượt click, thời điểm tạo, lần click gần nhất) mà không tăng đếm.
+1. Người dùng mở trang web tĩnh trên **S3**, nhập link dài và **tuỳ chọn** một mã ngắn riêng (*custom short code*).
+2. Trang gọi `POST /` tới **Lambda Function URL** — nếu có `customCode` hợp lệ và chưa ai dùng thì lưu đúng mã đó, ngược lại Lambda tự sinh mã random 6 ký tự; ghi vào **DynamoDB** bằng `PutItem` có điều kiện chống trùng.
+3. Khi ai truy cập `shortUrl`, Lambda `UpdateItem` **atomic** để tăng `clickCount` và cập nhật `lastClickedAt`, rồi trả **HTTP 302** redirect tới link gốc.
+4. `GET /stats/{shortCode}` đọc số liệu (link gốc, `clickCount`, `createdAt`, `lastClickedAt`) mà không tăng đếm.
+5. Mọi lỗi được log dạng `console.error("[ERROR]", ...)` → **CloudWatch Logs Metric Filter** bắt log này → **CloudWatch Alarm** kích hoạt khi ≥ 1 lỗi/5 phút → **SNS Topic** gửi email cảnh báo cho admin.
+
+### 📋 Đối chiếu với nhận xét của admin
+
+| Đề xuất | Trạng thái | Ghi chú |
+|---|---|---|
+| Custom short code | ✅ Đã làm | `POST /` nhận `customCode`, validate + chống trùng (409) |
+| Analytics (đếm click, thời điểm) | ✅ Đã làm | `clickCount`, `createdAt`, `lastClickedAt` qua `GET /stats/{shortCode}` |
+| Cảnh báo lỗi (Operational Excellence) | ✅ Đã làm | CloudWatch Metric Filter + Alarm + SNS email |
+| Migrate S3 → AWS Amplify | ⏳ Chưa làm | Vẫn đang dùng S3 Static Website Hosting |
+| DAX caching cho DynamoDB | ⏳ Chưa làm | Đề xuất tối ưu chi phí, chưa triển khai |
+| Multi-region / Disaster Recovery | ⏳ Chưa làm | Cần nghiên cứu thêm, chưa triển khai |
+| Đăng ký / đăng nhập | ⏳ Chưa làm | Chưa nằm trong phạm vi hiện tại |
 
 ## 📁 Cấu trúc project
 
