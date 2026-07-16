@@ -1,7 +1,7 @@
 // Chi dung khi chay LOCAL qua Docker (DynamoDB Local khong co san bang nhu
 // AWS thuc te). Tren AWS, ban tao bang qua Console theo muc 3.1 tai lieu goc,
 // nen ham nay se tu bo qua khi khong thay bien DYNAMODB_ENDPOINT.
-import { DynamoDBClient, CreateTableCommand, waitUntilTableExists } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, CreateTableCommand, UpdateTimeToLiveCommand, waitUntilTableExists } from "@aws-sdk/client-dynamodb";
 
 const TABLE_NAME = process.env.TABLE_NAME || "url-shortener-links";
 
@@ -20,6 +20,22 @@ async function createTable() {
   }));
   console.log(`Da tao bang "${TABLE_NAME}" tren DynamoDB Local.`);
   await waitUntilTableExists({ client, maxWaitTime: 30 }, { TableName: TABLE_NAME });
+  await enableTtl();
+}
+
+// DynamoDB Local co ho tro API bat/tat TTL nhung KHONG tu xoa item qua han
+// (chi la gia lap API cho dev, khong co background sweep nhu AWS thuc te).
+// Goi de code local giong AWS nhat co the, khong bao loi ra ngoai neu that bai.
+async function enableTtl() {
+  try {
+    await client.send(new UpdateTimeToLiveCommand({
+      TableName: TABLE_NAME,
+      TimeToLiveSpecification: { AttributeName: "expiresAt", Enabled: true },
+    }));
+    console.log(`Da bat TTL (attribute "expiresAt") cho bang "${TABLE_NAME}" (chi la gia lap, DynamoDB Local khong tu xoa item).`);
+  } catch (err) {
+    console.log(`Khong bat duoc TTL tren DynamoDB Local (bo qua, khong anh huong local dev): ${err.message}`);
+  }
 }
 
 export async function ensureTableExists({ retries = 15, delayMs = 2000 } = {}) {
@@ -34,6 +50,7 @@ export async function ensureTableExists({ retries = 15, delayMs = 2000 } = {}) {
     } catch (err) {
       if (err.name === "ResourceInUseException") {
         console.log(`Bang "${TABLE_NAME}" da ton tai, bo qua.`);
+        await enableTtl();
         return;
       }
       if (attempt === retries) throw err;

@@ -7,6 +7,10 @@ import crypto from "crypto";
 
 const TABLE_NAME = process.env.TABLE_NAME || "url-shortener-links";
 
+// So ngay link song truoc khi DynamoDB TTL tu xoa (mac dinh 90 ngay).
+// Phai bat TTL tren attribute "expiresAt" o cau hinh bang DynamoDB (xem README).
+const TTL_DAYS = Number(process.env.TTL_DAYS || 90);
+
 // Cac tu khoa khong duoc dung lam custom short code, vi trung voi route noi bo
 const RESERVED_CODES = new Set(["stats"]);
 const CUSTOM_CODE_PATTERN = /^[A-Za-z0-9_-]{3,20}$/;
@@ -44,6 +48,11 @@ function isValidCustomCode(code) {
   return CUSTOM_CODE_PATTERN.test(code) && !RESERVED_CODES.has(code.toLowerCase());
 }
 
+// DynamoDB TTL yeu cau epoch giay (Number), khong phai milliseconds
+function computeExpiresAt(days = TTL_DAYS) {
+  return Math.floor(Date.now() / 1000) + days * 24 * 60 * 60;
+}
+
 export const handler = async (event) => {
   const method = event.requestContext?.http?.method || "GET";
   const path = event.rawPath || "/";
@@ -68,6 +77,7 @@ export const handler = async (event) => {
       const item = {
         originalUrl,
         createdAt: new Date().toISOString(),
+        expiresAt: computeExpiresAt(),
       };
 
       let shortCode;
@@ -137,6 +147,7 @@ export const handler = async (event) => {
         clickCount: result.Item.clickCount || 0,
         createdAt: result.Item.createdAt,
         lastClickedAt: result.Item.lastClickedAt || null,
+        expiresAt: result.Item.expiresAt ? new Date(result.Item.expiresAt * 1000).toISOString() : null,
       });
     } catch (err) {
       console.error("[ERROR]", err);
