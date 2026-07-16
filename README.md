@@ -63,18 +63,6 @@ Dự án triển khai theo kiến trúc trong `huong-dan-url-shortener-aws.md`: 
 4. `GET /stats/{shortCode}` đọc số liệu (link gốc, `clickCount`, `createdAt`, `lastClickedAt`) mà không tăng đếm.
 5. Mọi lỗi được log dạng `console.error("[ERROR]", ...)` → **CloudWatch Logs Metric Filter** bắt log này → **CloudWatch Alarm** kích hoạt khi ≥ 1 lỗi/5 phút → **SNS Topic** gửi email cảnh báo cho admin.
 
-### 📋 Đối chiếu với nhận xét của admin
-
-| Đề xuất | Trạng thái | Ghi chú |
-|---|---|---|
-| Custom short code | ✅ Đã làm | `POST /` nhận `customCode`, validate + chống trùng (409) |
-| Analytics (đếm click, thời điểm) | ✅ Đã làm | `clickCount`, `createdAt`, `lastClickedAt` qua `GET /stats/{shortCode}` |
-| Cảnh báo lỗi (Operational Excellence) | ✅ Đã làm | CloudWatch Metric Filter + Alarm + SNS email |
-| Migrate S3 → AWS Amplify | ⏳ Chưa làm | Vẫn đang dùng S3 Static Website Hosting |
-| DAX caching cho DynamoDB | ⏳ Chưa làm | Đề xuất tối ưu chi phí, chưa triển khai |
-| Multi-region / Disaster Recovery | ⏳ Chưa làm | Cần nghiên cứu thêm, chưa triển khai |
-| Đăng ký / đăng nhập | ⏳ Chưa làm | Chưa nằm trong phạm vi hiện tại |
-
 ## 📁 Cấu trúc project
 
 ```
