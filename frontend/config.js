@@ -1,6 +1,6 @@
-// Tai nguyen AWS cu da bi xoa, dang tro ve backend local (Docker) de dev/test.
-// Khi tao lai Lambda Function URL moi tren AWS, doi LAMBDA_URL sang URL do
-// truoc khi upload len S3/Amplify.
+// Dang tro ve Lambda Function URL thuc te tren AWS (da tao lai sau khi xoa
+// tai nguyen cu). Neu muon quay lai test local qua Docker, doi LAMBDA_URL ve
+// "http://localhost:3000".
 window.APP_CONFIG = {
-  LAMBDA_URL: "http://localhost:3000",
+  LAMBDA_URL: "https://6m4zvjit6tk2zucx5zvb4l7fpq0yacem.lambda-url.ap-southeast-1.on.aws",
 };

@@ -285,7 +285,29 @@
   }
 
   function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => alert("Đã copy link!"));
+    // navigator.clipboard chi hoat dong tren HTTPS/localhost (secure context).
+    // S3 Static Website Hosting thuan chi chay HTTP nen can fallback bang execCommand.
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(() => alert("Đã copy link!")).catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand("copy");
+      alert("Đã copy link!");
+    } catch {
+      alert("Không thể copy tự động. Link của bạn: " + text);
+    }
+    document.body.removeChild(textarea);
   }
 
   async function viewStats(shortCode) {
