@@ -1,6 +1,6 @@
-// Dang tro ve Lambda Function URL thuc te tren AWS (khong con dung backend
-// local nua). Neu muon quay lai test voi backend local (Docker), doi
-// LAMBDA_URL ve "http://localhost:3000".
+// Tai nguyen AWS cu da bi xoa, dang tro ve backend local (Docker) de dev/test.
+// Khi tao lai Lambda Function URL moi tren AWS, doi LAMBDA_URL sang URL do
+// truoc khi upload len S3/Amplify.
 window.APP_CONFIG = {
-  LAMBDA_URL: "https://wkrzvdek3oopk3vgurrwg4nsci0rtxtx.lambda-url.ap-southeast-1.on.aws",
+  LAMBDA_URL: "http://localhost:3000",
 };

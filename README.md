@@ -29,6 +29,7 @@
 - [Checklist kiểm thử](#-checklist-kiểm-thử)
 - [Deploy lên AWS thật](#-deploy-lên-aws-thật)
 - [Nâng cấp: đếm click + cảnh báo lỗi](#-nâng-cấp-đếm-lượt-click--cảnh-báo-lỗi-qua-cloudwatch)
+- [Nâng cấp: custom short code + analytics mở rộng](#-nâng-cấp-custom-short-code--analytics-mở-rộng)
 - [Xử lý lỗi thường gặp](#-xử-lý-lỗi-thường-gặp)
 
 ---
@@ -61,10 +62,10 @@ flowchart LR
     L -->|6. 302 Redirect| U
 ```
 
-1. Người dùng mở trang web tĩnh trên **S3**, nhập link dài.
-2. Trang gọi `POST /` tới **Lambda Function URL**, Lambda sinh `shortCode` 6 ký tự, lưu vào **DynamoDB**.
-3. Khi ai truy cập `shortUrl`, Lambda tra bảng, tăng `clickCount` (atomic), trả về **HTTP 302** redirect tới link gốc.
-4. `GET /stats/{shortCode}` cho xem số liệu (link gốc + số lượt click) mà không tăng đếm.
+1. Người dùng mở trang web tĩnh trên **S3**, nhập link dài (và tuỳ chọn mã ngắn riêng — *custom short code*).
+2. Trang gọi `POST /` tới **Lambda Function URL**, Lambda sinh `shortCode` (random 6 ký tự, hoặc dùng mã do người dùng đặt), lưu vào **DynamoDB**.
+3. Khi ai truy cập `shortUrl`, Lambda tra bảng, tăng `clickCount` + cập nhật `lastClickedAt` (atomic), trả về **HTTP 302** redirect tới link gốc.
+4. `GET /stats/{shortCode}` cho xem số liệu (link gốc, số lượt click, thời điểm tạo, lần click gần nhất) mà không tăng đếm.
 
 ## 📁 Cấu trúc project
 
@@ -121,7 +122,7 @@ docker compose down                 # dừng & xoá container (dữ liệu Dynam
 ## ✅ Checklist kiểm thử
 
 <details>
-<summary>Xem đầy đủ 8 test case (theo mục 6 tài liệu gốc)</summary>
+<summary>Xem đầy đủ 12 test case (8 test case gốc theo mục 6 tài liệu + 4 test case custom code/analytics)</summary>
 
 | STT | Test case | Cách test |
 |---|---|---|
@@ -133,6 +134,10 @@ docker compose down                 # dừng & xoá container (dữ liệu Dynam
 | 6 | CORS | Response có header `Access-Control-Allow-Origin: *` |
 | 7 | Tạo nhiều link liên tiếp | Mã ngắn không trùng |
 | 8 | Dữ liệu trong DynamoDB | Xem qua DynamoDB Admin (http://localhost:8001) |
+| 9 | Tạo custom short code hợp lệ | Nhấn "+ Đặt mã tuỳ chỉnh", nhập `khuyen-mai-2026` → tạo thành công với đúng mã đó |
+| 10 | Custom code bị trùng | Tạo lại đúng mã vừa dùng ở trên → backend trả **409** |
+| 11 | Custom code sai định dạng / trùng từ khoá | Nhập `a!` hoặc `stats` → backend trả **400** |
+| 12 | Xem số liệu (`/stats`) | Sau khi tạo link, nhấn "Xem số liệu" → hiện đúng `clickCount`, `createdAt`, `lastClickedAt` |
 
 </details>
 
@@ -155,7 +160,7 @@ Luồng redirect (`GET /{shortCode}`) dùng `UpdateCommand` để tăng `clickCo
 Thêm endpoint mới **`GET /stats/{shortCode}`** (không tăng click count, chỉ đọc):
 
 ```json
-{ "shortCode": "aZ3kT9", "originalUrl": "https://...", "clickCount": 5, "createdAt": "..." }
+{ "shortCode": "aZ3kT9", "originalUrl": "https://...", "clickCount": 5, "createdAt": "...", "lastClickedAt": "..." }
 ```
 
 <details>
@@ -191,6 +196,29 @@ Các bước làm trên AWS Console (không có trong code, phải tự làm):
 2. **CloudWatch → Alarms → Create alarm** trên metric `URLShortenerErrorCount`
    - Ngưỡng: **≥ 1 lỗi trong 5 phút**
 3. Tạo **SNS topic** mới, subscribe email nhận cảnh báo → xác nhận subscription qua email đã nhận được.
+
+## 🔗 Nâng cấp: Custom short code + analytics mở rộng
+
+### ✍️ Custom short code
+
+`POST /` nhận thêm field tuỳ chọn `customCode` trong body:
+
+```json
+{ "url": "https://example.com/khuyen-mai", "customCode": "khuyen-mai-2026" }
+```
+
+- **Định dạng hợp lệ**: 3–20 ký tự, chỉ gồm chữ, số, `-`, `_` (regex `^[A-Za-z0-9_-]{3,20}$`).
+- **Từ khoá bị chặn**: `stats` (trùng với route nội bộ `GET /stats/{shortCode}`).
+- **Chống trùng mã**: dùng `PutCommand` kèm `ConditionExpression: attribute_not_exists(shortCode)` — nếu mã đã tồn tại, trả về **HTTP 409** `{ "error": "Mã này đã được sử dụng, vui lòng chọn mã khác." }`.
+- Nếu không truyền `customCode`, hệ thống vẫn sinh mã ngẫu nhiên 6 ký tự như cũ (có thêm cơ chế thử lại tối đa 5 lần nếu trùng mã — xác suất cực thấp nhưng vẫn xử lý an toàn).
+- Frontend (`frontend/index.html`) có nút **"+ Đặt mã tuỳ chỉnh (tuỳ chọn)"** để hiện ô nhập, không bắt buộc điền.
+
+### 📊 Analytics mở rộng (`lastClickedAt`)
+
+Ngoài `clickCount`, mỗi lần redirect giờ cũng cập nhật `lastClickedAt` (timestamp ISO) trong cùng một `UpdateCommand` atomic — không tốn thêm request tới DynamoDB. Endpoint `GET /stats/{shortCode}` trả về đầy đủ `clickCount`, `createdAt`, `lastClickedAt`. Frontend có nút **"Xem số liệu"** ngay sau khi tạo link để xem nhanh mà không cần gọi API thủ công.
+
+> [!NOTE]
+> Không cần thêm quyền IAM mới cho 2 tính năng này — vẫn dùng đúng 3 action đã cấp ở trên (`PutItem`, `GetItem`, `UpdateItem`).
 
 ## 🛠️ Xử lý lỗi thường gặp
 

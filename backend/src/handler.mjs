@@ -7,6 +7,10 @@ import crypto from "crypto";
 
 const TABLE_NAME = process.env.TABLE_NAME || "url-shortener-links";
 
+// Cac tu khoa khong duoc dung lam custom short code, vi trung voi route noi bo
+const RESERVED_CODES = new Set(["stats"]);
+const CUSTOM_CODE_PATTERN = /^[A-Za-z0-9_-]{3,20}$/;
+
 // DYNAMODB_ENDPOINT chi duoc set khi chay local (tro ve DynamoDB Local).
 // Tren AWS thuc te, bien nay khong ton tai nen SDK tu dong dung DynamoDB vung that.
 const clientConfig = {};
@@ -36,6 +40,10 @@ function isValidUrl(str) {
   }
 }
 
+function isValidCustomCode(code) {
+  return CUSTOM_CODE_PATTERN.test(code) && !RESERVED_CODES.has(code.toLowerCase());
+}
+
 export const handler = async (event) => {
   const method = event.requestContext?.http?.method || "GET";
   const path = event.rawPath || "/";
@@ -45,21 +53,58 @@ export const handler = async (event) => {
     try {
       const body = JSON.parse(event.body || "{}");
       const originalUrl = body.url;
+      const customCode = body.customCode ? String(body.customCode).trim() : null;
 
       if (!originalUrl || !isValidUrl(originalUrl)) {
         return jsonResponse(400, { error: "Link không hợp lệ. Vui lòng nhập link bắt đầu bằng http:// hoặc https://" });
       }
 
-      const shortCode = generateShortCode(6);
+      if (customCode && !isValidCustomCode(customCode)) {
+        return jsonResponse(400, {
+          error: "Mã tuỳ chỉnh không hợp lệ. Chỉ dùng chữ, số, gạch ngang/gạch dưới, 3-20 ký tự, không dùng từ khoá hệ thống.",
+        });
+      }
 
-      await ddb.send(new PutCommand({
-        TableName: TABLE_NAME,
-        Item: {
-          shortCode,
-          originalUrl,
-          createdAt: new Date().toISOString(),
-        },
-      }));
+      const item = {
+        originalUrl,
+        createdAt: new Date().toISOString(),
+      };
+
+      let shortCode;
+      if (customCode) {
+        shortCode = customCode;
+        try {
+          await ddb.send(new PutCommand({
+            TableName: TABLE_NAME,
+            Item: { shortCode, ...item },
+            ConditionExpression: "attribute_not_exists(shortCode)",
+          }));
+        } catch (err) {
+          if (err.name === "ConditionalCheckFailedException") {
+            return jsonResponse(409, { error: "Mã này đã được sử dụng, vui lòng chọn mã khác." });
+          }
+          throw err;
+        }
+      } else {
+        // Ma random 6 ky tu, thu lai vai lan neu trung (rat hiem, nhung van xu ly an toan)
+        let created = false;
+        for (let attempt = 0; attempt < 5 && !created; attempt++) {
+          shortCode = generateShortCode(6);
+          try {
+            await ddb.send(new PutCommand({
+              TableName: TABLE_NAME,
+              Item: { shortCode, ...item },
+              ConditionExpression: "attribute_not_exists(shortCode)",
+            }));
+            created = true;
+          } catch (err) {
+            if (err.name !== "ConditionalCheckFailedException") throw err;
+          }
+        }
+        if (!created) {
+          return jsonResponse(500, { error: "Không thể tạo mã ngắn, vui lòng thử lại." });
+        }
+      }
 
       const host = event.headers?.host || event.headers?.Host || "your-lambda-url.lambda-url.region.on.aws";
       const protocol = event.headers?.["x-forwarded-proto"] || "https";
@@ -91,6 +136,7 @@ export const handler = async (event) => {
         originalUrl: result.Item.originalUrl,
         clickCount: result.Item.clickCount || 0,
         createdAt: result.Item.createdAt,
+        lastClickedAt: result.Item.lastClickedAt || null,
       });
     } catch (err) {
       console.error("[ERROR]", err);
@@ -106,9 +152,9 @@ export const handler = async (event) => {
       const result = await ddb.send(new UpdateCommand({
         TableName: TABLE_NAME,
         Key: { shortCode },
-        UpdateExpression: "SET clickCount = if_not_exists(clickCount, :zero) + :inc",
+        UpdateExpression: "SET clickCount = if_not_exists(clickCount, :zero) + :inc, lastClickedAt = :now",
         ConditionExpression: "attribute_exists(shortCode)",
-        ExpressionAttributeValues: { ":zero": 0, ":inc": 1 },
+        ExpressionAttributeValues: { ":zero": 0, ":inc": 1, ":now": new Date().toISOString() },
         ReturnValues: "ALL_NEW",
       }));
 
