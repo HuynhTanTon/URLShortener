@@ -53,23 +53,9 @@ Dự án triển khai theo kiến trúc trong `huong-dan-url-shortener-aws.md`: 
 
 ## 🏗️ Kiến trúc
 
-> Sơ đồ dưới đây vẽ đúng phần **đã triển khai thật trong code** (kể cả 2 nâng cấp: đếm click + cảnh báo CloudWatch, và custom short code + analytics mở rộng). Các đề xuất của admin **chưa triển khai** (Amplify, DAX, multi-region, đăng nhập...) không được vẽ vào đây — xem bảng trạng thái ngay dưới sơ đồ.
+> Sơ đồ dưới đây vẽ đúng phần **đã triển khai thật trên AWS** (đã deploy lại và test end-to-end thành công): custom short code, analytics mở rộng, TTL, Reserved Concurrency, CORS siết domain cụ thể, và đủ 3 CloudWatch Alarm (Errors/Duration/Throttles) + SNS + email — đã xác nhận nhận được cảnh báo thật. Các đề xuất của admin **chưa triển khai** (Amplify, DAX, multi-region, đăng nhập, WAF, PITR) không được vẽ vào đây — xem bảng trạng thái ngay dưới sơ đồ.
 
-```mermaid
-flowchart LR
-    U([👤 Người dùng]) -->|1. Mở trang, nhập link<br/>+ mã tuỳ chọn nếu muốn| S3[🌐 S3<br/>Static Website]
-    S3 -->|2. POST /<br/>url + customCode?| L[⚡ Lambda<br/>Function URL]
-    L -->|3. PutItem<br/>condition: not_exists| D[(🗄️ DynamoDB<br/>url-shortener-links)]
-    U -->|4. GET /shortCode| L
-    L -->|5. UpdateItem atomic<br/>clickCount + lastClickedAt| D
-    L -->|6. 302 Redirect| U
-    U -.->|7. GET /stats/shortCode| L
-    L -.->|8. GetItem read-only| D
-    L -->|9. console.error| CW[📋 CloudWatch Logs]
-    CW -->|10. Metric filter pattern: ERROR| AL[🚨 CloudWatch Alarm]
-    AL -->|11. Trigger khi ≥1 lỗi/5 phút| SNS[📧 SNS Topic]
-    SNS -->|12. Gửi email| ADM([👤 Admin])
-```
+![Kiến trúc URL Shortener trên AWS](docs/architecture-diagram.png)
 
 1. Người dùng mở trang web tĩnh trên **S3**, nhập link dài và **tuỳ chọn** một mã ngắn riêng (*custom short code*).
 2. Trang gọi `POST /` tới **Lambda Function URL** — nếu có `customCode` hợp lệ và chưa ai dùng thì lưu đúng mã đó, ngược lại Lambda tự sinh mã random 6 ký tự; ghi vào **DynamoDB** bằng `PutItem` có điều kiện chống trùng.
