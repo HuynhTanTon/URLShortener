@@ -127,6 +127,58 @@
   }
 
   .copy-btn:hover { background: var(--accent-light); }
+
+  .toggle-link {
+    display: inline-block;
+    background: none;
+    border: none;
+    color: var(--accent-dark);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    width: auto;
+    margin-bottom: 10px;
+    font-family: inherit;
+  }
+
+  .toggle-link:hover { text-decoration: underline; background: none; }
+
+  #customCodeWrap { display: none; margin-bottom: 4px; }
+
+  #customCodeWrap .hint {
+    color: var(--muted);
+    font-size: 12px;
+    margin: -4px 0 10px;
+  }
+
+  .stats-btn {
+    margin-top: 8px;
+    margin-left: 8px;
+    background: transparent;
+    border: 1.5px solid var(--muted);
+    color: var(--muted);
+    padding: 6px 12px;
+    font-size: 12.5px;
+    width: auto;
+    display: inline-block;
+  }
+
+  .stats-btn:hover { background: #f1f5f9; }
+
+  #statsBox {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--ink);
+    display: none;
+    line-height: 1.6;
+  }
+
+  #statsBox strong { color: var(--accent-dark); }
 </style>
 </head>
 <body>
@@ -141,22 +193,43 @@
     <p class="subtitle">Dán link dài vào ô bên dưới để tạo link ngắn</p>
 
     <input type="text" id="urlInput" placeholder="https://example.com/link-rat-dai...">
+
+    <button type="button" class="toggle-link" id="toggleCustomBtn" onclick="toggleCustomCode()">+ Đặt mã tuỳ chỉnh (tuỳ chọn)</button>
+
+    <div id="customCodeWrap">
+      <input type="text" id="customCodeInput" placeholder="vd: khuyen-mai-2026">
+      <p class="hint">3-20 ký tự: chữ, số, gạch ngang/gạch dưới. Để trống nếu muốn hệ thống tự sinh mã.</p>
+    </div>
+
     <button id="submitBtn" onclick="shortenUrl()">Tạo link ngắn</button>
 
     <div id="result"></div>
+    <div id="statsBox"></div>
   </div>
 
 <script src="config.js"></script>
 <script>
   const LAMBDA_URL = window.APP_CONFIG.LAMBDA_URL;
 
+  function toggleCustomCode() {
+    const wrap = document.getElementById("customCodeWrap");
+    const btn = document.getElementById("toggleCustomBtn");
+    const show = wrap.style.display !== "block";
+    wrap.style.display = show ? "block" : "none";
+    btn.textContent = show ? "− Ẩn mã tuỳ chỉnh" : "+ Đặt mã tuỳ chỉnh (tuỳ chọn)";
+  }
+
   async function shortenUrl() {
     const input = document.getElementById("urlInput");
+    const customCodeInput = document.getElementById("customCodeInput");
     const resultDiv = document.getElementById("result");
+    const statsBox = document.getElementById("statsBox");
     const btn = document.getElementById("submitBtn");
     const url = input.value.trim();
+    const customCode = customCodeInput.value.trim();
 
     resultDiv.style.display = "none";
+    statsBox.style.display = "none";
 
     if (!url) {
       showError("Vui lòng nhập link.");
@@ -167,10 +240,13 @@
     btn.textContent = "Đang xử lý...";
 
     try {
+      const payload = { url };
+      if (customCode) payload.customCode = customCode;
+
       const res = await fetch(LAMBDA_URL + "/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -178,7 +254,7 @@
       if (!res.ok) {
         showError(data.error || "Có lỗi xảy ra.");
       } else {
-        showSuccess(data.shortUrl);
+        showSuccess(data.shortUrl, data.shortCode);
       }
     } catch (err) {
       showError("Không thể kết nối tới server. Kiểm tra lại kết nối mạng hoặc CORS.");
@@ -189,7 +265,7 @@
     }
   }
 
-  function showSuccess(shortUrl) {
+  function showSuccess(shortUrl, shortCode) {
     const resultDiv = document.getElementById("result");
     resultDiv.className = "success";
     resultDiv.style.display = "block";
@@ -197,6 +273,7 @@
       Link ngắn của bạn: <br>
       <a href="${shortUrl}" target="_blank">${shortUrl}</a><br>
       <button class="copy-btn" onclick="copyToClipboard('${shortUrl}')">Copy link</button>
+      <button class="stats-btn" onclick="viewStats('${shortCode}')">Xem số liệu</button>
     `;
   }
 
@@ -209,6 +286,34 @@
 
   function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => alert("Đã copy link!"));
+  }
+
+  async function viewStats(shortCode) {
+    const statsBox = document.getElementById("statsBox");
+    statsBox.style.display = "block";
+    statsBox.textContent = "Đang tải số liệu...";
+
+    try {
+      const res = await fetch(LAMBDA_URL + "/stats/" + shortCode);
+      const data = await res.json();
+
+      if (!res.ok) {
+        statsBox.textContent = data.error || "Không lấy được số liệu.";
+        return;
+      }
+
+      const created = data.createdAt ? new Date(data.createdAt).toLocaleString("vi-VN") : "—";
+      const lastClicked = data.lastClickedAt ? new Date(data.lastClickedAt).toLocaleString("vi-VN") : "Chưa có lượt click";
+
+      statsBox.innerHTML = `
+        <div>Số lượt click: <strong>${data.clickCount}</strong></div>
+        <div>Tạo lúc: ${created}</div>
+        <div>Click gần nhất: ${lastClicked}</div>
+      `;
+    } catch (err) {
+      statsBox.textContent = "Không thể kết nối tới server để lấy số liệu.";
+      console.error(err);
+    }
   }
 </script>
 </body>
