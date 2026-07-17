@@ -51,6 +51,9 @@ Dự án triển khai theo kiến trúc trong `huong-dan-url-shortener-aws.md`: 
 > [!NOTE]
 > `backend/src/handler.mjs` là code Lambda **deploy-được thẳng lên AWS Console, không cần sửa gì**. Mọi hack chỉ dành cho local (SSL, tự tạo bảng...) đều nằm riêng ở `local-server.mjs`, `ensure-table.mjs`, `Dockerfile`.
 
+> [!WARNING]
+> Sau khi quay video demo, toàn bộ tài nguyên AWS thật (DynamoDB, Lambda, Function URL, S3 bucket, CloudWatch Alarms, SNS Topic) **đã được gỡ bỏ** để tránh phát sinh chi phí ngoài Free Tier. Link Function URL / S3 website trong video demo hiện **không còn hoạt động**. Muốn chạy lại, làm theo hướng dẫn ở phần [Deploy lên AWS thật](#-deploy-lên-aws-thật), hoặc chạy local bằng Docker (xem phần dưới) — không cần tài khoản AWS.
+
 ## 🏗️ Kiến trúc
 
 > Sơ đồ dưới đây vẽ đúng phần **đã triển khai thật trên AWS** (đã deploy lại và test end-to-end thành công): custom short code, analytics mở rộng, TTL, Reserved Concurrency, CORS siết domain cụ thể, và đủ 3 CloudWatch Alarm (Errors/Duration/Throttles) + SNS + email — đã xác nhận nhận được cảnh báo thật. Các đề xuất của admin **chưa triển khai** (Amplify, DAX, multi-region, đăng nhập, WAF, PITR) không được vẽ vào đây — xem bảng trạng thái ngay dưới sơ đồ.
