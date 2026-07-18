@@ -13,7 +13,7 @@
 
 <img src="frontend/forest-anime-bg.png" alt="preview background" width="480" />
 
-### 🎬 [Xem video demo](docs/demo.mp4)
+### 🎬 [Xem video demo](https://drive.google.com/file/d/1az6EVbShi64-Lg72U0uZnOoewGKCVeXn/view?usp=drive_link)
 
 </div>
 
